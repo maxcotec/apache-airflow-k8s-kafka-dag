@@ -1,0 +1,97 @@
+mysql:
+  enabled: true
+
+  auth:
+    rootPassword: "12345678"
+    username: airflow
+    password: "12345678"
+    database: airflow
+
+  primary:
+    persistence:
+      enabled: true
+      size: 10Gi
+      storageClass: nfs-rwx
+
+nfs:
+  enabled: true
+  persistence:
+    enabled: true
+    size: 5Gi
+    storageClass: local-path
+
+  storageClass:
+    create: true
+    name: nfs-rwx
+    defaultClass: false
+    mountOptions:
+      - vers=4.1
+      - retrans=2
+      - timeo=30
+
+airflow:
+  defaultAirflowRepository: apache-airflow-kafka-trigger
+  defaultAirflowTag: "latest"
+  airflowVersion: "3.0.6"
+
+  # Disable Celery worker dependencies
+  executor: KubernetesExecutor
+  postgresql:
+    enabled: false
+  workers:
+    replicas: 0
+
+  logs:
+    persistence:
+      enabled: true
+      size: 5Gi
+      storageClassName: nfs-rwx
+
+  data:
+    metadataConnection:
+      user: airflow
+      pass: "12345678"
+      protocol: mysql
+      db: airflow
+      port: 3306
+      host: "airflow-mysql.airflow.svc.cluster.local"
+
+  config:
+    core:
+      load_examples: "False"
+
+  extraEnv: |
+   - name: AIRFLOW__CORE__LOAD_EXAMPLES
+     value: "False"
+   - name: AIRFLOW__CORE__PLUGINS_FOLDER
+     value: /opt/airflow/dags/repo/plugins
+   - name: PYTHONASYNCIODEBUG
+     value: "1"
+   - name: AIRFLOW_CONN_KAFKA_DEFAULT
+     value: '{"conn_type": "kafka","extra": {"bootstrap.servers": "kafka.kafka.svc.cluster.local:9092","group.id": "group_1","security.protocol": "PLAINTEXT","enable.auto.commit": false,"auto.offset.reset": "beginning"}}'
+
+  # Create AdminUser with password from secret
+  createUserJob:
+    env:
+      - name: ADMIN_PASSWORD
+        value: "admin"
+    args:
+      - bash
+      - -c
+      - >
+        set -euo pipefail;
+        exec airflow users create
+        -r '{{ .Values.webserver.defaultUser.role }}'
+        -u '{{ .Values.webserver.defaultUser.username }}'
+        -e '{{ .Values.webserver.defaultUser.email }}'
+        -f '{{ .Values.webserver.defaultUser.firstName }}'
+        -l '{{ .Values.webserver.defaultUser.lastName }}'
+        -p "${ADMIN_PASSWORD}"    
+
+  dags:
+    gitSync:
+      enabled: true
+      repo: "https://github.com/maxcotec/apache-airflow-events-trigger.git"
+      branch: main
+      subPath: ""
+      wait: 30
