@@ -50,11 +50,31 @@ App version 4.0.8
 
 ### Apache Airflow: 
 
+```shell
+3.0.6
+```
+
+## Prep work
+Before deploying airflow, there are few things to set up first. 
+
+### K8s Cluster
+Be sure rancher has spun up your k8s cluster and rite context is selected. By default, rancher names the k8s context as `rancher-desktop`. 
+Check if its present in context list. type `kubectl config get-contexts` to list all your k8s clusters contexts.
+Then type `kubectl config use-context rancher-desktop`
+
+Create a namespace `airflow` and `kafka`
+
+```
+kubectl create namespace airflow
+kubectl create namespace kafka
+```
+
+### Build Apache Airflow image
 This project requires additional packages to be installed on top of airflow base image. 
 Use the provided Dockerfile to build image and tag it as follows `apache-airflow-kafka-trigger:latest`
 See below on how to build Docker image from Rancher.
 
-### Rancher build image
+#### Rancher build image
 
 Open Rancher Desktop main window, go to `images`>`Add Image`>`Build`.
 Name of the image to build: `apache-airflow-kafka-trigger:latest`
@@ -79,30 +99,16 @@ docker pull apache/airflow:3.0.6
 ```
 Then build your custom image again.
 
-### Apache-Kafka
+### Deploy Apache-Kafka
 
-use this code https://github.com/maxcotec/apache-kafka to spin up local kafka instance (+ Kafka UI)
-into your local machine. 
+Use the provided kubernetes manifest files to deploy Apache-Kafka on your K8s cluster. 
+
 ```shell
-cd kafka
-docker-compose up . 
+kubectl create -f kafka-k8s/
 ```
+This should deploy kafka and kafka-ui service on your namespace `kafka`.
 
-## Prep work
-Before deploying airflow, there are few things to set up first. 
-
-### K8s Cluster
-Be sure rancher has spun up your k8s cluster and rite context is selected. By default, rancher names the k8s context as `rancher-desktop`. 
-Check if its present in context list. type `kubectl config get-contexts` to list all your k8s clusters contexts.
-Then type `kubectl config use-context rancher-desktop`
-
-Create a namespace `airflow` 
-
-```
-kubectl create namespace airflow
-```
-
-## Deploy instructions
+### Deploy Apache-Airflow
 
 1. Initialize helm chart `helm create <your chart name>`
 
